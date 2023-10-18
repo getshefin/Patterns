@@ -1,5 +1,5 @@
 // Load and show the UI
-figma.showUI(__html__, { width: 240, height: 160 });
+figma.showUI(__html__, { width: 300, height: 350 });
 
 const figmaUIApi: UIAPI = figma.ui;
 
@@ -15,28 +15,35 @@ figmaUIApi.onmessage = msg => {
 
         const centerX = nodes.reduce((sum, node) => sum + node.x, 0) / numberOfNodes;
         const centerY = nodes.reduce((sum, node) => sum + node.y, 0) / numberOfNodes;
-        const radius = parseFloat(msg.radius);
 
+        // Find the largest node dimension (either width or height)
+        const maxNodeDimension = Math.max(...nodes.map(node => Math.max(node.width, node.height)));
+        
+        const gap = parseFloat(msg.gap);
+        const combinedSize = maxNodeDimension + gap;
+        
         // Place the first element in the center
         nodes[0].x = centerX - nodes[0].width / 2;
         nodes[0].y = centerY - nodes[0].height / 2;
 
-        // Calculate the number of circles required (layers of nodes around the center)
-        const circlesRequired = Math.ceil(Math.sqrt(numberOfNodes));
+        let nodesPlaced = 1;
+        let circleIndex = 1;
 
-        // Distribute the remaining nodes among the circles
-        for (let i = 1, circle = 1; circle <= circlesRequired; circle++) {
-            const nodesInThisCircle = Math.min(numberOfNodes - i, circle * 6);
-            const circleRadius = (circle / circlesRequired) * radius;
+        while (nodesPlaced < numberOfNodes) {
+            const currentRadius = circleIndex * combinedSize;
+            const circumference = 2 * Math.PI * currentRadius;
+            const nodesInThisCircle = Math.min(Math.floor(circumference / combinedSize), numberOfNodes - nodesPlaced);
 
-            for (let j = 0; j < nodesInThisCircle && i < numberOfNodes; j++, i++) {
+            for (let j = 0; j < nodesInThisCircle && nodesPlaced < numberOfNodes; j++) {
                 const angle = (j / nodesInThisCircle) * 2 * Math.PI;
-                nodes[i].x = centerX + circleRadius * Math.cos(angle) - nodes[i].width / 2;
-                nodes[i].y = centerY + circleRadius * Math.sin(angle) - nodes[i].height / 2;
+                nodes[nodesPlaced].x = centerX + currentRadius * Math.cos(angle) - nodes[nodesPlaced].width / 2;
+                nodes[nodesPlaced].y = centerY + currentRadius * Math.sin(angle) - nodes[nodesPlaced].height / 2;
+                nodesPlaced++;
             }
+
+            circleIndex++;
         }
 
         figma.notify('Elements aligned in a filled circular pattern!');
-        figma.closePlugin();
     }
 };
